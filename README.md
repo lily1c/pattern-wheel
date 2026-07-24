@@ -4,9 +4,7 @@
 
 **Ten algorithmic patterns for coding interviews — the keywords that give each one away, what it costs, and why the tempting alternative fails.**
 
-[Report an issue](https://github.com/lily1c/pattern-wheel/issues)
-
-<sub>Live URL goes here once Cloudflare assigns it.</sub>
+[Live site](https://pattern-wheel.pages.dev) · [Report an issue](https://github.com/lily1c/pattern-wheel/issues)
 
 </div>
 
