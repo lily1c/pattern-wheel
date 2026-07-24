@@ -1,0 +1,39 @@
+name: build & test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test deps
+        run: npm install
+
+      - name: Rebuild index.html from src/
+        run: npm run build
+
+      - name: Fail if the committed index.html is stale
+        run: |
+          if ! git diff --quiet index.html; then
+            echo "::error::index.html does not match src/. Run 'npm run build' and commit the result."
+            git diff --stat index.html
+            exit 1
+          fi
+          echo "index.html is up to date with src/"
+
+      - name: Run tests
+        run: npm test

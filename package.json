@@ -1,0 +1,24 @@
+{
+  "name": "pattern-wheel",
+  "version": "1.0.0",
+  "description": "Ten algorithmic patterns for coding interviews — the keywords that give each one away, what it costs, and why the tempting alternative fails.",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "build": "python3 scripts/build.py",
+    "test": "node tests/run.cjs",
+    "verify": "npm run build && npm test",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  },
+  "keywords": [
+    "leetcode",
+    "algorithms",
+    "interview-preparation",
+    "data-structures",
+    "pattern-recognition",
+    "study-tool"
+  ]
+}
