@@ -29,7 +29,15 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);
 
 .wheelbox{display:flex;justify-content:center;margin:22px 0 4px;touch-action:manipulation}
 svg#wheel{width:100%;max-width:400px;height:auto;display:block}
-.wedge{cursor:pointer;transition:opacity .2s}
+.wedge{cursor:pointer;outline:none;
+  transition:fill .45s cubic-bezier(.4,0,.2,1),stroke .45s cubic-bezier(.4,0,.2,1),opacity .3s}
+.wedge:focus{outline:none}
+.wedge:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+svg#wheel{-webkit-tap-highlight-color:transparent;touch-action:pan-y}
+#rotor{transform-origin:200px 200px;transition:transform .58s cubic-bezier(.32,.72,0,1)}
+#rotor.drag{transition:none}
+#ptr{transition:opacity .2s}
+svg#wheel *{-webkit-tap-highlight-color:transparent}
 .wlab{pointer-events:none;font-size:10px;font-weight:600;font-family:var(--sans)}
 .hint{text-align:center;font-size:12.5px;color:var(--mute);margin:2px 0 18px;font-family:var(--mono)}
 
@@ -205,7 +213,8 @@ footer{text-align:center;font-size:12px;color:var(--mute);margin-top:26px;line-h
     <div class="col-wheel">
       <div class="wheelbox">
         <svg id="wheel" viewBox="0 0 400 400" role="img" aria-label="Interactive wheel of ten algorithmic patterns">
-          <g id="wedges"></g>
+          <g id="rotor"><g id="wedges"></g></g>
+          <path id="ptr" d="M200 6 L206 20 L194 20 Z" fill="#C4577F"/>
           <circle cx="200" cy="200" r="56" fill="#FFF" stroke="#D9D5CB"/>
           <text id="h1" x="200" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#1A1A1A"></text>
           <text id="h2" x="200" y="208" text-anchor="middle" font-size="12" font-weight="700" fill="#C4577F"></text>
@@ -1959,23 +1968,49 @@ P.forEach((it,i)=>{
   p.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();sel(i);}});
   g.appendChild(p);
   const mid=(a0+a1)/2, words=it.s.split(" ");
+  const [lx,ly]=pt(mid,126);
+  const lg=document.createElementNS(NS,"g");
+  lg.setAttribute("class","wlabg");
+  lg.dataset.w=i;
+  lg.setAttribute("transform",`rotate(${-mid} ${lx} ${ly})`);
   words.forEach((w,j)=>{
-    const [tx,ty]=pt(mid,126);
     const t=document.createElementNS(NS,"text");
-    t.setAttribute("x",tx);
-    t.setAttribute("y",ty+(j-(words.length-1)/2)*12);
+    t.setAttribute("x",lx);
+    t.setAttribute("y",ly+(j-(words.length-1)/2)*12);
     t.setAttribute("text-anchor","middle");
     t.setAttribute("dominant-baseline","central");
     t.setAttribute("class","wlab");
     t.dataset.w=i;
     t.setAttribute("fill","#6E6A63");
     t.textContent=w;
-    g.appendChild(t);
+    lg.appendChild(t);
   });
+  g.appendChild(lg);
 });
 const wedges=[...document.querySelectorAll(".wedge")];
 
-function sel(i){
+const rotor=document.getElementById("rotor");
+const SEG=360/N;
+let spin=0;                       // accumulated rotation, degrees
+
+function applySpin(deg,animate){
+  rotor.classList.toggle("drag",!animate);
+  rotor.style.transform=`rotate(${deg}deg)`;
+  document.querySelectorAll(".wlabg").forEach(lg=>{
+    const i=+lg.dataset.w, mid=(i+0.5)*SEG;
+    const [lx,ly]=pt(mid,126);
+    lg.setAttribute("transform",`rotate(${-mid-deg} ${lx} ${ly})`);
+  });
+}
+
+function sel(i,animate){
+  if(animate===undefined) animate=true;
+  // rotate the shortest way round so the chosen wedge lands under the pointer
+  const target=-((i+0.5)*SEG);
+  let delta=((target-spin)%360+540)%360-180;
+  spin+=delta;
+  applySpin(spin,animate);
+
   cur=i;
   const it=P[i];
   wedges.forEach((w,j)=>{
@@ -1992,7 +2027,13 @@ function sel(i){
   document.getElementById("h1").textContent="Pattern";
   document.getElementById("h2").textContent=String(i+1).padStart(2,"0")+" / 10";
   document.getElementById("h3").textContent=it.time;
-  document.getElementById("hint").textContent="swipe or tap another";
+  document.getElementById("hint").textContent="drag the wheel, or scroll";
+  renderPanel(i);
+  if(codeSheet.classList.contains("on")) renderCode(codeTab);
+}
+
+function renderPanel(i){
+  const it=P[i];
   document.getElementById("panel").innerHTML=`
    <div class="hero">
      <div class="heron">Pattern ${String(i+1).padStart(2,"0")}</div>
@@ -2022,15 +2063,104 @@ function sel(i){
      <p class="sec">Practice</p>
      <div class="probs">${it.probs.map(x=>`<span class="prob">${x}</span>`).join("")}</div>
    </div>`;
-  if(codeSheet.classList.contains("on")) renderCode(codeTab);
 }
 document.getElementById("prev").onclick=()=>sel((cur-1+N)%N);
 document.getElementById("next").onclick=()=>sel((cur+1)%N);
 
+/* ---- drag / scroll the wheel like a crown ---- */
+const svgEl=document.getElementById("wheel");
+let dragging=false, lastAng=0, spinStart=0, moved=0;
+
+function angleAt(clientX,clientY){
+  const r=svgEl.getBoundingClientRect();
+  const x=clientX-(r.left+r.width/2);
+  const y=clientY-(r.top+r.height/2);
+  return Math.atan2(y,x)*180/Math.PI;
+}
+function nearestIndex(){
+  // which wedge currently sits under the top pointer
+  let i=Math.round((-spin/SEG)-0.5);
+  return ((i%N)+N)%N;
+}
+function settle(){
+  const i=nearestIndex();
+  if(i!==cur || Math.abs(spin-(-((cur+0.5)*SEG)))>0.5) sel(i,true);
+  else applySpin(spin=-((cur+0.5)*SEG),true);
+}
+function dragStart(x,y){
+  dragging=true; moved=0;
+  lastAng=angleAt(x,y); spinStart=spin;
+  rotor.classList.add("drag");
+}
+function dragMove(x,y){
+  if(!dragging) return;
+  const a=angleAt(x,y);
+  let d=a-lastAng;
+  if(d>180) d-=360; if(d<-180) d+=360;
+  lastAng=a; spin+=d; moved+=Math.abs(d);
+  applySpin(spin,false);
+  // live-highlight the wedge passing under the pointer
+  const i=nearestIndex();
+  if(i!==cur){
+    cur=i;
+    wedges.forEach((w,j)=>{
+      const on=j===i;
+      w.setAttribute("fill", on?"#C4577F":"#FFFFFF");
+      w.setAttribute("stroke", on?"#C4577F":"#D9D5CB");
+    });
+    document.querySelectorAll(".wlab").forEach(t=>{
+      const on=+t.dataset.w===i;
+      t.setAttribute("fill", on?"#F2F0E9":"#6E6A63");
+      t.style.fontWeight = on?700:500;
+    });
+    document.getElementById("h2").textContent=String(i+1).padStart(2,"0")+" / 10";
+    document.getElementById("h3").textContent=P[i].time;
+  }
+}
+function dragEnd(){
+  if(!dragging) return;
+  dragging=false;
+  const wasDrag = moved>6;
+  settle();
+  if(wasDrag) renderPanel(cur);
+  return wasDrag;
+}
+
+svgEl.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse" && e.button!==0) return;
+  svgEl.setPointerCapture(e.pointerId);
+  dragStart(e.clientX,e.clientY);
+});
+svgEl.addEventListener("pointermove",e=>{ if(dragging){e.preventDefault(); dragMove(e.clientX,e.clientY);} });
+svgEl.addEventListener("pointerup",e=>{ const d=dragEnd(); if(d) e.preventDefault(); });
+svgEl.addEventListener("pointercancel",dragEnd);
+
+// wheel / trackpad scroll steps one pattern at a time
+let scrollLock=false;
+svgEl.addEventListener("wheel",e=>{
+  if(document.querySelector(".sheet.on")) return;
+  e.preventDefault();
+  if(scrollLock) return;
+  scrollLock=true;
+  setTimeout(()=>scrollLock=false,320);
+  sel(e.deltaY>0||e.deltaX>0 ? (cur+1)%N : (cur-1+N)%N);
+},{passive:false});
+
+// arrow keys
+document.addEventListener("keydown",e=>{
+  if(document.querySelector(".sheet.on")) return;
+  const t=e.target.tagName;
+  if(t==="INPUT"||t==="TEXTAREA") return;
+  if(e.key==="ArrowRight"||e.key==="ArrowDown"){e.preventDefault();sel((cur+1)%N);}
+  if(e.key==="ArrowLeft"||e.key==="ArrowUp"){e.preventDefault();sel((cur-1+N)%N);}
+});
+
+// vertical swipe elsewhere on the page still pages through patterns on mobile
 let sx=0,sy=0;
 document.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
 document.addEventListener("touchend",e=>{
-  if(document.querySelector(".sheet.on"))return;
+  if(document.querySelector(".sheet.on")||dragging)return;
+  if(svgEl.contains(e.target))return;
   const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
   if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6) sel(dx<0?(cur+1)%N:(cur-1+N)%N);
 },{passive:true});
