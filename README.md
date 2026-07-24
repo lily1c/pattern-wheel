@@ -6,6 +6,8 @@
 
 [Live site](https://pattern-wheel.pages.dev) · [Report an issue](https://github.com/lily1c/pattern-wheel/issues)
 
+Built by [Assol Abasova](https://assolabasova.duckdns.org)
+
 </div>
 
 ---
@@ -206,4 +208,11 @@ truncated excerpts for identification only.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Copyright © 2026 Assol Abasova.
+
+You can use, modify, and redistribute this freely, including commercially.
+The only requirement is that the copyright notice travels with it.
+
+This covers the code, the pattern writeups, the dictionary, and the labelling
+pipeline. It does not cover the LeetCode problem statements, which remain
+LeetCode's — see [Credits](#credits).
